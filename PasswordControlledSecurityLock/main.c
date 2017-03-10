@@ -95,7 +95,8 @@ void lcd_gotoxy(unsigned char x, unsigned char y) {
 int main(void) {
 	// initialize LCD
 	char colloc, rowloc, printCharacter, password, count; // password and count are used to know when someone enters the password
-	char userPassword[3] ="\0\0\0"		 // initially all nulls 
+	char initialcount = 0;
+	char userPassword[3] ={'\0','\0','\0'};		 // initially all nulls 
 	char keypad[4][3] = {'1','2','3',    // my keypad inputs mapped here
 						 '4','5','6',
 						 '7','8','9',
@@ -103,6 +104,83 @@ int main(void) {
 	lcd_init();		//initialization
 	KEY_DDR = 0x0F;
 	KEY_PRT = 0x7F;
+	
+	while (initialcount < 3){
+		do
+		{
+			KEY_PRT &= 0x70;			// make sure no buttons are being pressed yet
+			colloc = (KEY_PIN & 0x70);
+		}while (colloc != 0x70);  // repeat until someone stops pushing the button
+
+		do
+		{
+			do
+			{
+				_delay_ms(20);
+				colloc = (KEY_PIN & 0x70);
+			} while (colloc == 0x70);  // see if someone pushed a button
+			_delay_ms(20);
+			colloc = (KEY_PIN & 0x70);
+		} while (colloc == 0x70); // this is here to be certain someone pushed a button
+
+		while(1){
+			KEY_PRT = 0x7E;    // we ground the first row to see if the thing being pressed is there
+			_delay_ms(1);			 // the delay is here because otherwise the hardware needed time to ground it
+			colloc = (KEY_PIN & 0x70);
+			if (colloc != 0x70){
+				rowloc = 0;  // save row location
+				break;
+			}
+			KEY_PRT = 0x7D; 		// we ground the second row to see if the thing being pressed is there
+			_delay_ms(10); 			// the delay is here because otherwise the hardware needed time to ground it
+			colloc = (KEY_PIN & 0x70);
+			if (colloc != 0x70){
+				rowloc = 1;				// save row location
+				break;
+			}
+			KEY_PRT = 0x7B;			// we ground the third row to see if the thing being pressed is there
+			_delay_ms(10);			// the delay is here because otherwise the hardware needed time to ground it
+			colloc = (KEY_PIN & 0x70);
+			if (colloc != 0x70){
+				rowloc = 2; 			// save row location
+				break;
+			}
+			KEY_PRT = 0x77;
+			_delay_ms(10);
+			colloc = (KEY_PIN & 0x70);  // If its not any of the past rows we know its the third one
+			rowloc = 3;
+			break;
+		}
+		if (colloc == 0x60)
+		{
+			userPassword[initialcount] = keypad[rowloc][0];
+		}
+		else if (colloc == 0x50)
+		{
+			userPassword[initialcount] = keypad[rowloc][1];
+		}
+		else if (colloc == 0x30)
+		{
+			userPassword[initialcount] = keypad[rowloc][2];
+		}
+		
+		initialcount++;
+		if (initialcount == 3)
+		{
+			_delay_ms(100);
+			count = 0;
+			lcd_gotoxy(1,1);
+			lcd_print("Pass Entered"); 
+			
+			_delay_ms(300);
+			lcdCommand(0x01);
+			lcd_gotoxy(1,1);
+			password = 0;    // reset everything
+		}
+
+	}
+	
+	
 	while (1){
 	 do
 	{
@@ -163,17 +241,21 @@ int main(void) {
 		{
 			printCharacter = keypad[rowloc][2];
 			lcdData(printCharacter);
+		}/*
+		if ((printCharacter == userPassword[0]) && (password == 0))  
+		{
+			password ++;													// ugly legacy code dunno if I need it
 		}
-		if ((printCharacter == '5') && (password == 0))  // the password is 537
+		else if ((printCharacter == userPassword[1]) && (password == 1))
 		{
 			password ++;
 		}
-		else if ((printCharacter == '3') && (password == 1))
+		else if ((printCharacter == userPassword[2]) && (password == 2))
 		{
 			password ++;
-		}
-		else if ((printCharacter == '7') && (password == 2))
-		{
+		}*/
+		
+		if (printCharacter == userPassword[count]){
 			password ++;
 		}
 		else
